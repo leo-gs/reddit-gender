@@ -1,14 +1,12 @@
 import json
 import requests
-from time import sleep
+from time import sleep, strftime
 
 
 
 def pull_keywords():
     keywords = ["red pill", "redpill", "trp", "blue pill", "bluepill", "manosphere", "mra", "men's rights movement", "men's rights activists", "mgtow", "mghow", "men going their own way", "mgtower", "pua", "pickup artist", "pick-up artist", "feminism", "feminist", "misandry", "genderqueer", "trans", "ftm", "mtf", "transgender", "transsexual", "non-binary", "enby", "nonbinary"]
     return keywords
-
-
 
 def extract_subreddits_from_json(result, keyword):
 
@@ -108,7 +106,8 @@ for index, keyword in enumerate(keywords):
 print("Removing duplicates....", flush=True)
 all_rows = list(set(all_rows))
 
-with open("sep15_icwsm2020_repl_dump.json", "w+") as f:
+
+with open("seeds_subreddits_collected_{}.json".format(strftime("%Y-%m-%d")), "w+") as f:
     json.dump(all_rows, f)
 
 print("Done!")

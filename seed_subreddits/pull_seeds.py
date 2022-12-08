@@ -2,7 +2,12 @@ import json
 import requests
 from time import sleep, strftime
 
-
+'''
+Output: a json file with the following structure:
+- "keywords": a list of the search keywords used
+- "timestamp": the current timestamp when the results were dumped into the json file
+- "results": a list of search results, where each row has the following fields in order: (1) search keyword, (2) subreddit name (i.e. r/something), (3) subreddit id (i.e. a string starting with t_), (4) subreddit title, (5) subreddit description as shown in the search results page, (6) a link to the subreddit, and (7) the concatenation of the description and title (for easier text searching/matching). Some fields may be empty if the subreddit is private or otherwise not publicly visible.
+'''
 
 def pull_keywords():
     keywords = ["red pill", "redpill", "trp", "blue pill", "bluepill", "manosphere", "mra", "men's rights movement", "men's rights activists", "mgtow", "mghow", "men going their own way", "mgtower", "pua", "pickup artist", "pick-up artist", "feminism", "feminist", "misandry", "genderqueer", "trans", "ftm", "mtf", "transgender", "transsexual", "non-binary", "enby", "nonbinary"]

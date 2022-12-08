@@ -86,7 +86,7 @@ def pull_results(keyword):
         if new_after_id == after_id:
             new_after_id = None
 
-        print("\tafter_id = {}, new_after_id = {}".format(after_id, new_after_id), flush=True)
+        # print("\tafter_id = {}, new_after_id = {}".format(after_id, new_after_id), flush=True)
 
     return keyword_rows
 
@@ -106,8 +106,14 @@ for index, keyword in enumerate(keywords):
 print("Removing duplicates....", flush=True)
 all_rows = list(set(all_rows))
 
+current_ts = strftime("%Y-%m-%d")
 
-with open("seeds_subreddits_collected_{}.json".format(strftime("%Y-%m-%d")), "w+") as f:
-    json.dump(all_rows, f)
+with open("seeds_subreddits_collected_{}.json".format(current_ts), "w+") as f:
+    output = {
+        "keywords": keywords,
+        "timestamp": current_ts,
+        "results": all_rows
+    }
+    json.dump(output, f)
 
 print("Done!")

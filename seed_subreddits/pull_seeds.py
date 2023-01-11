@@ -18,7 +18,7 @@ Output: a json file with the following structure:
 '''
 
 def pull_keywords():
-    keywords = ["red pill", "redpill", "trp", "blue pill", "bluepill", "manosphere", "mra", "men's rights movement", "men's rights activists", "mgtow", "mghow", "men going their own way", "mgtower", "pua", "pickup artist", "pick-up artist", "feminism", "feminist", "misandry", "genderqueer", "trans", "ftm", "mtf", "transgender", "transsexual", "non-binary", "enby", "nonbinary"]
+    keywords = ["red pill", "redpill", "trp", "blue pill", "bluepill", "manosphere", "mra", "men's rights movement", "men's rights activists", "mgtow", "mghow", "men going their own way", "mgtower", "pua", "pickup artist", "pick-up artist", "feminism", "feminist", "misandry", "genderqueer", "trans", "ftm", "mtf", "transgender", "transsexual", "non-binary", "enby", "nonbinary", "chad", "stacy", "becky", "foid", "femoid", "alpha", "beta", "zeta", "incel"]
     return keywords
 
 def extract_subreddits_from_json(result, keyword):
@@ -47,8 +47,10 @@ def pull_results(keyword):
     keyword_rows = []
 
     def make_request(after_id=None):
+        
+        print("\n\t\tInside make_request(after_id={})".format(after_id))
+        
         search_endpoint = "https://www.reddit.com/subreddits/search.json"
-
         search_headers = {"User-agent": "com.lgs17.searching_subreddits"}
 
         search_params = {
@@ -63,21 +65,25 @@ def pull_results(keyword):
             search_params["after"] = after_id
 
         result = requests.get(search_endpoint, headers = search_headers, params = search_params)
+        # print("\t\t{}".format(result.url), flush=True)
 
         if result.ok:
             page_results = extract_subreddits_from_json(result.json(), keyword)
-            last_id = page_results[-1][1] if bool(page_results) else None
-
+            last_id = page_results[-1][2] if bool(page_results) else None
+            # print("\t\t{} results".format(len(page_results)), flush=True)
             if len(page_results) == 0:
                 return None
 
             if last_id != after_id:
                 keyword_rows.extend(page_results)
+            
+            # print("\t\tFirst result: {}".format(page_results[0][1]), flush=True)
+            # print("\t\tLast result: {}\n".format(page_results[-1][1]), flush=True)
 
             return last_id
 
         else:
-            print("Bad response: {}".format(str(result)), flush=True)
+            print("\tBad response: {}".format(str(result)), flush=True)
             return
 
 
@@ -85,22 +91,25 @@ def pull_results(keyword):
     request_count = 0
 
     while bool(new_after_id):
+        # print("\n\tWhile Loop:", flush=True)
         after_id = new_after_id
         new_after_id = make_request(after_id=new_after_id)
 
         request_count = request_count + 1
+        # print("\t\tRequests for {}: {}".format(keyword, str(request_count)), flush=True)
 
         if (request_count % 60 == 0) or not bool(new_after_id):
-            print("\tCurrently collecting {}.... Request count #{}.... {} rows collected.... Sleeping 60 seconds.".format(keyword, request_count, len(keyword_rows)), flush=True)
-            print("\t\tLast subreddit: {}".format(keyword_rows[-1][-1]), flush=True)
+            print("\t\tCurrently collecting {}.... Request count #{}.... {} rows collected.... Sleeping 60 seconds.".format(keyword, request_count, len(keyword_rows)), flush=True)
+            # print("\t\tLast subreddit: {}".format(keyword_rows[-1][1]), flush=True)
             sleep(60)
 
         ## There are not enough results for a new iteration, so we're getting duplicates of the first results
         if new_after_id == after_id:
             new_after_id = None
 
-        # print("\tafter_id = {}, new_after_id = {}".format(after_id, new_after_id), flush=True)
-
+        # print("\t\tafter_id = {}, new_after_id = {}".format(after_id, new_after_id), flush=True)
+    
+    # print("\t{} rows collected.".format(len(keyword_rows)))
     return keyword_rows
 
 
@@ -108,20 +117,21 @@ def pull_results(keyword):
 keywords = pull_keywords()
 
 
-
 all_rows = []
 for index, keyword in enumerate(keywords):
-    print("{} rows collected.... Now collecting subreddits for keyword {} ({}/{} or {}%)".format(len(all_rows), keyword, (index+1), len(keywords), int((index+1)*100/len(keywords))), flush=True)
+    print("{} rows collected.... ({}/{} or {}%)".format(len(all_rows), (index+1), len(keywords), int((index+1)*100/len(keywords))), flush=True)
+    print("CURRENT KEYWORD:\t{}".format(keyword))
     keyword_rows = pull_results(keyword)
     all_rows.extend(keyword_rows)
 
 
 print("Removing duplicates....", flush=True)
 all_rows = list(set(all_rows))
+print("{} rows collected. Now dumping to file....".format(len(all_rows)), flush=True)
 
 current_ts = strftime("%Y-%m-%d")
 
-with open("seeds_subreddits_collected_{}.json".format(current_ts), "w+") as f:
+with open("outputs/seeds_subreddits_collected_{}.json".format(current_ts), "w+") as f:
     output = {
         "keywords": keywords,
         "timestamp": current_ts,

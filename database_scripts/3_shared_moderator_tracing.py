@@ -203,7 +203,8 @@ def execute_in_db(query, return_results = False, return_first_only = False, args
     conn, cursor = get_db()
 
     if args and batch_insert:
-        ext.execute_batch(cursor, query, args)
+        for row in args:
+            cursor.execute(query, row)
     elif args:
         cursor.execute(query, args)
     else:

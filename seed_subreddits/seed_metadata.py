@@ -1,48 +1,52 @@
-from time import sleep
+from time import sleep, strftime
 import pandas as pd
 import praw
 import prawcore
-import psycopg2
-from psycopg2 import extras as ext
 import json
 import os
+import sys
 
+
+seed_subreddit_path = sys.argv[1]
+if not os.path.exists(seed_subreddit_path):
+    print("Seed file not found: ".format(seed_subreddit_path), flush=True)
+    quit()
+
+reddit_config_path = "/Users/lgs17/Desktop/Reddit Collab 2022/code/reddit_config.txt"
+if not os.path.exists(reddit_config_path):
+    print("Reddit creds file not found: ".format(reddit_config_path), flush=True)
+    quit()
+
+subreddit_metadata_dir = "outputs/subreddit_metadata/"
+if not os.path.exists(subreddit_metadata_dir):
+    print("Metadata output file not found: ".format(subreddit_metadata_dir), flush=True)
+subreddit_metadata_fpath = subreddit_metadata_dir + "{}.json"
+
+current_ts = strftime("%Y-%m-%d")
 
 def init_reddit():
     print("Creating Reddit object...", flush=True)
     reddit_config = {}
-    with open("~/Desktop/Reddit Collab 2022/code/reddit_config.txt") as f:
+    with open(reddit_config_path) as f:
         for line in f.readlines():
             key, value = line.split("=")
             reddit_config[key.strip()] = value.strip()
         reddit = praw.Reddit(**reddit_config)
         return reddit
 
+def pull_seed_subreddit_names_from_file():
+    print("Reading seed subreddit file...", flush=True)
+    with open(seed_subreddit_path) as f:
+        seed_data = json.load(f)
+        seed_subs = list(set([row[1] for row in seed_data["results"]]))
+        return sorted(seed_subs)
 
-#def pull_subreddits():
-#    SELECT_STMT = """
-#    SELECT subreddit
-#    FROM keyword_subreddit_search
-#    """
-#
-#    conn_string = "host='techne.ischool.uw.edu' dbname='transmasc_reddit_2' user='lgs17' password='WinCoo11!!'"
-#    conn = psycopg2.connect(conn_string)
-#    cursor = conn.cursor()
-#
-#    cursor.execute(SELECT_STMT)
-#
-#    subreddits = [row[0] for row in cursor.fetchall()]
-#    print(len(subreddits))
-#
-#    conn.commit()
-#    cursor.close()
-#    conn.close()
-#
-#    return subreddits
-
+def pull_already_collected_subreddit_names():
+    return [fpath.replace(".json", "") for fpath in os.listdir(subreddit_metadata_dir)]
 
 def scrape_subreddit(reddit, subreddit_name, index):
-    print("Scraping #{}: {}...".format(index, subreddit_name), flush=True)
+    if index % 100 == 0:
+        print("Scraping #{}: {}...".format(index, subreddit_name), flush=True)
 
     ## Retrieve a PRAW subreddit object for the given subreddit name
     def get_subreddit(reddit, subreddit_name):
@@ -80,124 +84,31 @@ def scrape_subreddit(reddit, subreddit_name, index):
     "comment_score_hide_mins", "show_media_preview", "submission_type"]] + [moderators]
     return row
 
+def write_subreddit_metadata(subreddit, row):
+    with open(subreddit_metadata_fpath.format(subreddit), "w") as f:
+        output = {
+            "metadata": row,
+            "collected_date": current_ts
+        }
+        json.dump(output, f)
 
-def load_metadata():
-    if not os.path.isfile("subreddit_metadata_backup.json"):
-        reddit = init_reddit()
-        subreddits = pull_subreddits()
-        subreddit_metadata_rows = [scrape_subreddit(reddit, sub, index) for index, sub in enumerate(subreddits)]
+def scrape_subreddit_metadata(subreddit_names):
+    reddit = init_reddit()
+    for index, sub in enumerate(subreddit_names):
+        row = scrape_subreddit(reddit, sub, index)
+        write_subreddit_metadata(sub, row)
 
-        with open("subreddit_metadata_backup.json", "w+") as f:
-            json.dump(subreddit_metadata_rows, f)
+subreddits_to_collect = pull_seed_subreddit_names_from_file()
+print("{} seed subreddits pulled from file.".format(len(subreddits_to_collect)), flush=True)
 
-    else:
-        with open("subreddit_metadata_backup.json") as f:
-            subreddit_metadata_rows = json.load(f)
+already_collected = pull_already_collected_subreddit_names()
+print("{} seed subreddits already have metadata.".format(len(already_collected)), flush=True)
 
-    subreddit_metadata_rows = [s for s in subreddit_metadata_rows if s]
-    return subreddit_metadata_rows
+subreddits_to_collect = list(set(subreddits_to_collect) - set(already_collected))
+print("{} seed subreddits remaining.".format(len(subreddits_to_collect)), flush=True)
 
+print("Beginning metadata collection...")
+scrape_subreddit_metadata(subreddits_to_collect)
 
-def clean_rows(rows):
-    for i, row in enumerate(rows):
-
-        for j in range(len(rows[i])):
-            if rows[i][j] == "None":
-                rows[i][j] = None
-    return rows
-
-
-
-subreddit_metadata_rows = load_metadata()
-subreddit_metadata_rows = clean_rows(subreddit_metadata_rows)
-
-DROP_STMT = """
-    DROP TABLE IF EXISTS subreddit_metadata_2;
-"""
-
-CREATE_STMT = """
-    CREATE TABLE subreddit_metadata_2 (
-        subreddit TEXT,
-        display_name TEXT,
-        free_form_reports BOOLEAN,
-        subreddit_type TEXT,
-        community_icon TEXT,
-        banner_background_image TEXT,
-        header_title TEXT,
-        over18 BOOLEAN,
-        show_media BOOLEAN,
-        description TEXT,
-        title TEXT,
-        collapse_deleted_comments BOOLEAN,
-        subreddit_id TEXT,
-        emojis_enabled BOOLEAN,
-        can_assign_user_flair BOOLEAN,
-        allow_videos BOOLEAN,
-        spoilers_enabled BOOLEAN,
-        active_user_count INT,
-        original_content_tag_enabled BOOLEAN,
-        display_name_prefixed TEXT,
-        can_assign_link_flair BOOLEAN,
-        submit_text TEXT,
-        allow_videogifs BOOLEAN,
-        accounts_active INT,
-        public_traffic BOOLEAN,
-        subscribers INT,
-        all_original_content BOOLEAN,
-        lang TEXT,
-        has_menu_widget BOOLEAN,
-        name TEXT,
-        user_flair_enabled_in_sr BOOLEAN,
-        created FLOAT,
-        url TEXT,
-        quarantine BOOLEAN,
-        hide_ads BOOLEAN,
-        created_utc FLOAT,
-        allow_discovery BOOLEAN,
-        accounts_active_is_fuzzed BOOLEAN,
-        advertiser_category TEXT,
-        public_description TEXT,
-        link_flair_enabled BOOLEAN,
-        allow_images BOOLEAN,
-        videostream_links_count INT,
-        comment_score_hide_mins INT,
-        show_media_preview BOOLEAN,
-        submission_type TEXT,
-        moderators JSON,
-        PRIMARY KEY(subreddit)
-    );
-"""
-
-INSERT_STMT = """
-INSERT INTO subreddit_metadata_2 (subreddit, display_name, free_form_reports, subreddit_type, community_icon, 
-    banner_background_image, header_title, over18, show_media, description, title, collapse_deleted_comments, 
-    subreddit_id, emojis_enabled, can_assign_user_flair, allow_videos, spoilers_enabled, active_user_count, 
-    original_content_tag_enabled, display_name_prefixed, can_assign_link_flair, submit_text, allow_videogifs, 
-    accounts_active, public_traffic, subscribers, all_original_content, lang, has_menu_widget, name, user_flair_enabled_in_sr, 
-    created, url, quarantine, hide_ads, created_utc, allow_discovery, accounts_active_is_fuzzed, advertiser_category, 
-    public_description, link_flair_enabled, allow_images, videostream_links_count, comment_score_hide_mins, show_media_preview, 
-    submission_type, moderators) 
-VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 
-    %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
-"""
-
-#conn_string = "host='techne.ischool.uw.edu' dbname='transmasc_reddit_2' user='lgs17' password='WinCoo11!!'"
-#conn = psycopg2.connect(conn_string)
-#cursor = conn.cursor()
-
-#cursor.execute(DROP_STMT)
-#cursor.execute(CREATE_STMT)
-
-#print("uploading {} rows....".format(len(subreddit_metadata_rows)), flush=True)
-#ext.execute_batch(cursor, INSERT_STMT, subreddit_metadata_rows)
-#print("finished uploading....", flush=True)
-
-#conn.commit()
-#cursor.close()
-#conn.close()
-
-#print("Done!")
-
-
-
+print("Done!")
 

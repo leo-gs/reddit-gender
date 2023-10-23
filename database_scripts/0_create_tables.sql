@@ -72,8 +72,8 @@ CREATE TABLE t1a_hyperlink_queue (
 	processed int2 NULL DEFAULT 0,
 	step int2 NULL,
     added_to_queue_date timestamp DEFAULT NOW(),
-	CONSTRAINT t1a_hyperlink_queue2_pkey PRIMARY KEY (subreddit),
-	CONSTRAINT t1a_hyperlink_queue2_subreddit_fkey FOREIGN KEY (subreddit) REFERENCES t2_subreddit_metadata(subreddit)
+	CONSTRAINT t1a_hyperlink_queue_pkey PRIMARY KEY (subreddit),
+	CONSTRAINT t1a_hyperlink_queue_subreddit_fkey FOREIGN KEY (subreddit) REFERENCES t2_subreddit_metadata(subreddit)
 );
 
 CREATE TABLE public.t1a_hyperlink_ties (
@@ -126,7 +126,7 @@ CREATE TABLE t1c_moderator_queue (
 
 CREATE TABLE t2_moderator_metadata(
     username text NOT NULL,
-    subreddits_moderated json NULL,
+    subreddits_moderated text[] NULL,
     has_metadata int2 DEFAULT 0,
     skip int2 DEFAULT 0,
     retrieved_date timestamp DEFAULT NOW(),
